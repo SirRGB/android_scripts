@@ -38,7 +38,7 @@ fi
 # touch the disk.
 
 tmpdir=$(mktemp -d)
-trap 'rm -rf ${tmpdir}; echo; exit 1' EXIT INT QUIT
+trap 'rm -rf ${tmpdir}; ' EXIT
 
 one=${tmpdir}/one
 two=${tmpdir}/two
@@ -46,11 +46,10 @@ mknod ${one} p
 mknod ${two} p
 chmod 0600 ${one} ${two}
 
-read -p "Enter password for '$1' (blank for none; password will be visible): " \
-  password
+password=""
 
 if [ "${3}" = "rsa" -o "$#" -eq 2 ]; then
-  ( openssl genrsa -f4 2048 | tee ${one} > ${two} ) &
+  ( openssl genrsa -f4 4096 | tee ${one} > ${two} ) &
   hash="-sha256"
 elif [ "${3}" = "ec" ]; then
   ( openssl ecparam -name prime256v1 -genkey -noout | tee ${one} > ${two} ) &
