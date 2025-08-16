@@ -1,0 +1,64 @@
+#!/bin/bash
+
+build_signed() {
+  local prefix version device type apex_args package_name
+
+  read -p "Enter the package prefix here: " prefix
+  read -p "Enter the package version here: " version
+  read -p "Enter the device here: " device
+  read -p "Enter the build type here: " type
+
+  set +eu
+  source "${ROM_DIR}"/build/envsetup.sh || true
+
+  release_codename=
+  if [[ -d "${ANDROID_BUILD_TOP}"/build/release/aconfig/ ]]; then
+    release_codename=-$(find "${ANDROID_BUILD_TOP}"/build/release/aconfig/* -maxdepth 0 -type d -name "[a-z][a-z][0-9][a-z]" -printf '%f\n' | tail -n1)
+  fi
+
+  product=$(grep -E "${device}" "${ANDROID_BUILD_TOP}"/device/*/"${device}"/AndroidProducts.mk | cut -d"/" -f2 | cut -d"." -f1 | head -n1)
+
+  lunch "${product}""${release_codename}"-"${type}"
+
+  m target-files-package otatools
+  croot
+
+  for apex_key in "${APEX_KEYS[@]}"; do
+    apex_args+=("--extra_apks" "${apex_key}.apex=${KEYS_DIR}/${apex_key}" "--extra_apex_payload_key" "${apex_key}.apex=${KEYS_DIR}/${apex_key}.pem")
+  done
+
+  sign_target_files_apks -o -d "${KEYS_DIR}" \
+    --extra_apks AdServicesApk.apk="${KEYS_DIR}"/releasekey \
+    --extra_apks FederatedCompute.apk="${KEYS_DIR}"/releasekey \
+    --extra_apks HalfSheetUX.apk="${KEYS_DIR}"/releasekey \
+    --extra_apks HealthConnectBackupRestore.apk="${KEYS_DIR}"/releasekey \
+    --extra_apks HealthConnectController.apk="${KEYS_DIR}"/releasekey \
+    --extra_apks OsuLogin.apk="${KEYS_DIR}"/releasekey \
+    --extra_apks SafetyCenterResources.apk="${KEYS_DIR}"/releasekey \
+    --extra_apks ServiceConnectivityResources.apk="${KEYS_DIR}"/releasekey \
+    --extra_apks ServiceUwbResources.apk="${KEYS_DIR}"/releasekey \
+    --extra_apks ServiceWifiResources.apk="${KEYS_DIR}"/releasekey \
+    --extra_apks WifiDialog.apk="${KEYS_DIR}"/releasekey \
+    "${apex_args[@]}" \
+    "${OUT}"/obj/PACKAGING/target_files_intermediates/*-target_files*.zip \
+    "${OUT}"/signed-target_files.zip
+
+  rom_extraversion=""
+  if [[ -n $(find "${OUT}" -mindepth 2 -name "FakeStore.apk" -print -quit) ]]; then
+    rom_extraversion="MICROG-"
+  elif [[ -n $(find "${OUT}" -mindepth 2 -name "GmsCore.apk" -print -quit) ]]; then
+    rom_extraversion="GMS-"
+  fi
+
+  package_name="${prefix}"-"${version}"-"${rom_extraversion}""$(date +%Y%m%d)"-"${device}"-signed.zip
+
+  ota_from_target_files -k "${KEYS_DIR}"/releasekey \
+    "${OUT}"/signed-target_files.zip \
+    "${OUT}"/"${package_name}"
+
+  unzip -p "${OUT}"/signed-target_files.zip IMAGES/recovery.img > "${OUT}"/"${package_name//.zip/-recovery.img}" ||
+    unzip -p "${OUT}"/signed-target_files.zip IMAGES/boot.img > "${OUT}"/"${package_name//.zip/-recovery.img}"
+}
+
+keygen
+build_signed
