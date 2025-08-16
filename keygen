@@ -3,6 +3,7 @@ set -eu
 
 KEYS_SUBJECT='/C=US/ST=California/L=Mountain View/O=Android/OU=Android/CN=Android/emailAddress=android@android.com'
 KEYS_DIR="${HOME}"/.android-certs
+mkdir "${KEYS_DIR}"
 
 _keysgen() {
   for cert in bluetooth cyngn-app cyngn-priv-app media networkstack nfc platform releasekey sdk_sandbox shared testcert testkey verity; do
