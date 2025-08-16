@@ -1,6 +1,6 @@
 #!/bin/bash
 
-build_signed() {
+_build_signed() {
   local prefix version device type apex_args package_name
 
   read -p "Enter the package prefix here: " prefix
@@ -61,4 +61,4 @@ build_signed() {
 }
 
 keygen
-build_signed
+_build_signed
